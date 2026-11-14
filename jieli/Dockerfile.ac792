@@ -1,0 +1,47 @@
+# Build image with the JieLi toolchain AND the AC792N SDK pre-installed.
+#
+# Based on enix223/jieli-build (toolchain + Linux post-build tools). The SDK is
+# cloned unpatched from Gitee at image build time, so no bind mount is required:
+#
+#   ./build-ac792.sh
+#   ./run-ac792.sh make ac792n_demo_demo_hello
+#
+# The buildable SDK lives in the repository's sdk/ subdirectory (the image's
+# working directory). No patches are applied. The only adaptation is the
+# /opt/utils/jl-post-build shim, which runs the SDK's generated post-build
+# script from sdk/cpu/wl83/tools where it expects to be and sets the ROOT
+# variable that script writes its reports to (see that script for why).
+#
+# As with AC791, the upstream Linux Makefile flow compiles and links sdk.elf
+# but does not generate a flashable image (app.bin / jl_isd.fw); use the SDK's
+# download_linux.c or Jieli's IDE for that.
+#
+# The toolchain binaries are x86-64 Linux ELF executables, so the image (and
+# the host running it) must be linux/amd64.
+# syntax=docker/dockerfile:1
+
+ARG BASE_IMAGE=enix223/jieli-build:1.0.0
+FROM ${BASE_IMAGE}
+
+ARG SDK_REPO=https://gitee.com/Jieli-Tech/fw-AC792_SDK.git
+# The repository has no master branch; its default is the newest release.
+ARG SDK_BRANCH=release/AC792N_SDK_V3
+ARG SDK_DIR=/opt/ac792-sdk
+
+USER root
+
+# Shallow clone of the upstream SDK, unmodified.
+RUN git clone --depth 1 --branch "${SDK_BRANCH}" "${SDK_REPO}" "${SDK_DIR}"
+
+# Container-side stand-in that fixes the working directory of the generated
+# Linux post-build script without patching the SDK. Overriding
+# RUN_POST_SCRIPT through MAKEFLAGS takes precedence over the Makefiles'
+# `RUN_POST_SCRIPT := ...` assignments.
+COPY scripts/jl-post-build /opt/utils/jl-post-build
+RUN chmod +x /opt/utils/jl-post-build
+ENV MAKEFLAGS="RUN_POST_SCRIPT=/opt/utils/jl-post-build"
+
+RUN chown -R dev:dev "${SDK_DIR}"
+
+USER dev
+WORKDIR /opt/ac792-sdk/sdk

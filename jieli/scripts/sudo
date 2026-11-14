@@ -1,0 +1,14 @@
+#!/bin/sh
+#
+# sudo shim for the container.
+#
+# The SDK's Linux packaging scripts (download_linux.c) prefix the static
+# isd_download binary with `sudo`. None of the build/pack commands need root:
+# they only read the SDK tree and write into it, and the container already runs
+# as a non-root user with the host UID. Exec without changing privileges so
+# those scripts work without granting sudo inside the image.
+#
+# This is deliberately only a fallback; do not add real privileged commands to
+# SDK build scripts and expect them to work.
+echo "sudo (container shim): running as $(id -un): $*" >&2
+exec "$@"

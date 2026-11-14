@@ -1,0 +1,33 @@
+#!/bin/sh
+#
+# Minimal stand-in for the /opt/utils/strip-ini helper from Jieli's IDE.
+#
+# The SDK generates isd_config.ini from isd_config_rule.c during the build and
+# then sanitises it with this tool. A plain copy is sufficient for compiling
+# and packing; strip CRs and a UTF-8 BOM so the ini parser is happy.
+#
+# Usage: strip-ini -i <input> -o <output>
+
+in=
+out=
+
+while [ "$#" -gt 0 ]; do
+    case "$1" in
+        -i) in=$2; shift 2 ;;
+        -o) out=$2; shift 2 ;;
+        *)  shift ;;
+    esac
+done
+
+[ -n "$in" ] && [ -n "$out" ] || exit 0
+[ -f "$in" ] || exit 0
+
+tmp=$(mktemp)
+sed -e '1s/^\xEF\xBB\xBF//' -e 's/\r$//' "$in" > "$tmp"
+
+if [ "$in" = "$out" ]; then
+    cat "$tmp" > "$in"
+    rm -f "$tmp"
+else
+    mv "$tmp" "$out"
+fi

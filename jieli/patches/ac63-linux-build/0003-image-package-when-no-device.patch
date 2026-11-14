@@ -1,0 +1,36 @@
+From 0efa9431409a307904d50ad94edff0548654b5c3 Mon Sep 17 00:00:00 2001
+From: jieli-docker <jieli-docker@localhost>
+Date: Fri, 13 Nov 2026 22:13:46 +0800
+Subject: [PATCH] image: package firmware when no device is attached
+
+isd_download exits non-zero when no device is connected even though it has
+packaged jl_isd.fw successfully. download.sh turned that into a hard build
+failure, which breaks headless/CI builds in the container.
+
+Keep the exit status as a warning and fail only if jl_isd.fw was not
+generated.
+---
+ cpu/bd19/tools/download/data_trans/download.sh | 7 ++++++-
+ 1 file changed, 6 insertions(+), 1 deletion(-)
+
+diff --git a/cpu/bd19/tools/download/data_trans/download.sh b/cpu/bd19/tools/download/data_trans/download.sh
+index f904ba7..bc33034 100644
+--- a/cpu/bd19/tools/download/data_trans/download.sh
++++ b/cpu/bd19/tools/download/data_trans/download.sh
+@@ -13,7 +13,12 @@ cp -v "../../tone.cfg" \
+       "../../flash_params.bin" .
+ 
+ echo "Running isd_download..."
+-"../../isd_download" "../../isd_config.ini" -tonorflash -dev bd19 -boot 0x2000 -div8 -wait 300 -uboot "../../uboot.boot" -app "../../app.bin" "../../cfg_tool.bin" -res "../../p11_code.bin" -uboot_compress -flash-params flash_params.bin || exit 1
++rm -f jl_isd.fw
++# Without a connected device isd_download still packages jl_isd.fw but exits
++# non-zero ("Device offline"). Treat that as a warning; only fail if nothing
++# was packaged.
++"../../isd_download" "../../isd_config.ini" -tonorflash -dev bd19 -boot 0x2000 -div8 -wait 300 -uboot "../../uboot.boot" -app "../../app.bin" "../../cfg_tool.bin" -res "../../p11_code.bin" -uboot_compress -flash-params flash_params.bin || echo "WARN: isd_download exited $?; device offline, packaged only"
++[ -f jl_isd.fw ] || { echo "ERROR: isd_download did not generate jl_isd.fw"; exit 1; }
+ 
+ echo "Cleaning up..."
+ rm -f *.mp3 *.PIX *.TAB *.res *.sty
+-- 
+2.43.0
+

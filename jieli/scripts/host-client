@@ -1,0 +1,14 @@
+#!/bin/sh
+#
+# No-op stand-in for Jieli's `host-client` helper.
+#
+# On Linux the default post-build step of the AC63/AC791/AC792 Makefiles ends
+# by handing the build artifacts to Jieli's IDE via host-client. That binary
+# ships with the Windows IDE and is not part of the Linux toolchain. Compiling
+# and linking have already finished by this point, so succeed quietly and let
+# `make` exit cleanly. Use the SDK's download_linux.c flow (AC791/AC792) or the
+# post-build tools in /opt/jieli/postbuild if you need a flashable image.
+#
+# Set JIELI_VERBOSE=1 to see when the SDK calls this.
+[ -n "${JIELI_VERBOSE:-}" ] && echo "host-client (stub): $*" >&2
+exit 0

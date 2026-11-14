@@ -1,0 +1,70 @@
+From 4395dfc159a31ad6b8d1b3040f15d8e9e2033ffb Mon Sep 17 00:00:00 2001
+From: Enix Yu <enix223@163.com>
+Date: Wed, 11 Mar 2026 12:14:32 +0800
+Subject: [PATCH 2/2] fix: lz4_packet not found issue
+
+(cherry picked from commit 826452148109f1cee7b4626310e73d6aae333153)
+---
+ cpu/bd19/tools/download.c |  10 +++-------
+ cpu/bd19/tools/lz4_packet | Bin
+ cpu/bd29/tools/lz4_packet | Bin
+ cpu/br23/tools/lz4_packet | Bin
+ cpu/br25/tools/lz4_packet | Bin
+ cpu/br30/tools/lz4_packet | Bin
+ cpu/br34/tools/lz4_packet | Bin
+ 7 files changed, 3 insertions(+), 7 deletions(-)
+ mode change 100644 => 100755 cpu/bd19/tools/lz4_packet
+ mode change 100644 => 100755 cpu/bd29/tools/lz4_packet
+ mode change 100644 => 100755 cpu/br23/tools/lz4_packet
+ mode change 100644 => 100755 cpu/br25/tools/lz4_packet
+ mode change 100644 => 100755 cpu/br30/tools/lz4_packet
+ mode change 100644 => 100755 cpu/br34/tools/lz4_packet
+
+diff --git a/cpu/bd19/tools/download.c b/cpu/bd19/tools/download.c
+index 872b464..f3b356b 100644
+--- a/cpu/bd19/tools/download.c
++++ b/cpu/bd19/tools/download.c
+@@ -21,19 +21,15 @@ bank_files=
+ for i in $(seq 0 20)
+ do
+     ${OBJCOPY} -O binary -j .overlay_bank$i $1.elf bank$i.bin
+-    if [ ! -s bank$i.bin ]
+-    then
+-        break
+-    fi
+-    bank_files=$bank_files"bank$i.bin 0x0 "
++    bank_files="${bank_files}bank$i.bin 0x0 "
+ done
+ echo $bank_files
+-lz4_packet -dict text.bin -input common.bin 0 $bank_files -o bank.bin
++./lz4_packet -dict text.bin -input common.bin 0 $bank_files -o bank.bin
+ 
+ ${OBJDUMP} -section-headers -address-mask=0x1ffffff $1.elf
+ ${OBJSIZEDUMP} -lite -skip-zero -enable-dbg-info $1.elf | sort -k 1 > symbol_tbl.txt
+ 
+-cat text.bin data.bin data_code.bin aec.bin aac.bin bank0.bin aptx.bin > app.bin
++cat text.bin data.bin data_code.bin aec.bin aac.bin bank.bin aptx.bin > app.bin
+ 
+ rm -f bank*.bin common.bin text.bin data.bin bank.bin aac.bin aec.bin aptx.bin
+ 
+diff --git a/cpu/bd19/tools/lz4_packet b/cpu/bd19/tools/lz4_packet
+old mode 100644
+new mode 100755
+diff --git a/cpu/bd29/tools/lz4_packet b/cpu/bd29/tools/lz4_packet
+old mode 100644
+new mode 100755
+diff --git a/cpu/br23/tools/lz4_packet b/cpu/br23/tools/lz4_packet
+old mode 100644
+new mode 100755
+diff --git a/cpu/br25/tools/lz4_packet b/cpu/br25/tools/lz4_packet
+old mode 100644
+new mode 100755
+diff --git a/cpu/br30/tools/lz4_packet b/cpu/br30/tools/lz4_packet
+old mode 100644
+new mode 100755
+diff --git a/cpu/br34/tools/lz4_packet b/cpu/br34/tools/lz4_packet
+old mode 100644
+new mode 100755
+-- 
+2.43.0
+

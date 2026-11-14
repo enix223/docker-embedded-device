@@ -1,0 +1,46 @@
+# Build image with the JieLi toolchain AND the AC79 (AC791N) AIoT SDK
+# pre-installed.
+#
+# Based on enix223/jieli-build (toolchain + Linux post-build tools). The SDK is
+# cloned unpatched from Gitee at image build time, so no bind mount is required:
+#
+#   ./build-ac791.sh
+#   ./run-ac791.sh make ac791n_demo_demo_hello
+#
+# Unlike the AC63 SDK, no patches are applied. The only adaptation is the
+# /opt/utils/jl-post-build shim, which runs the SDK's generated post-build
+# script from cpu/wl82/tools where it expects to be (see that script for why).
+#
+# The SDK's Makefiles compile and link sdk.elf. Generating a flashable image
+# (app.bin / jl_isd.fw) is not wired into the upstream Linux Makefile flow;
+# use the SDK's download_linux.c or Jieli's IDE for that.
+#
+# The toolchain binaries are x86-64 Linux ELF executables, so the image (and
+# the host running it) must be linux/amd64.
+# syntax=docker/dockerfile:1
+
+ARG BASE_IMAGE=enix223/jieli-build:1.0.0
+FROM ${BASE_IMAGE}
+
+ARG SDK_REPO=https://gitee.com/Jieli-Tech/fw-AC79_AIoT_SDK.git
+# The repository has no master branch; its default is the newest release.
+ARG SDK_BRANCH=release/AC79NN_SDK_V1.2.0
+ARG SDK_DIR=/opt/ac791-sdk
+
+USER root
+
+# Shallow clone of the upstream SDK, unmodified.
+RUN git clone --depth 1 --branch "${SDK_BRANCH}" "${SDK_REPO}" "${SDK_DIR}"
+
+# Container-side stand-in that fixes the working directory of the generated
+# Linux post-build script without patching the SDK. Overriding
+# RUN_POST_SCRIPT through MAKEFLAGS takes precedence over the Makefiles'
+# `RUN_POST_SCRIPT := ...` assignments.
+COPY scripts/jl-post-build /opt/utils/jl-post-build
+RUN chmod +x /opt/utils/jl-post-build
+ENV MAKEFLAGS="RUN_POST_SCRIPT=/opt/utils/jl-post-build"
+
+RUN chown -R dev:dev "${SDK_DIR}"
+
+USER dev
+WORKDIR /opt/ac791-sdk

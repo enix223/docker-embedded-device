@@ -1,0 +1,48 @@
+#!/bin/sh
+#
+# Run a JieLi SDK's generated Linux post-build script (download.sh) from the
+# directory it expects.
+#
+# The SDK Makefiles run RUN_POST_SCRIPT from the application's board directory
+# (apps/<app>/board/<chip>). The script emitted by cpu/<chip>/tools/download.c's
+# __SHELL__ branch, however, addresses sdk.elf, sdk.map, isd_config.ini and its
+# output paths relative to cpu/<chip>/tools, so running it in place fails with
+# "sdk.elf: No such file or directory" and make exits non-zero.
+#
+# This shim locates the SDK root from the current directory and runs the
+# script inside cpu/<chip>/tools. The SDK sources are left untouched. It is
+# wired up through MAKEFLAGS in Dockerfile.ac791 / Dockerfile.ac792:
+#
+#   ENV MAKEFLAGS="RUN_POST_SCRIPT=/opt/utils/jl-post-build"
+#
+# which overrides the Makefiles' RUN_POST_SCRIPT := ... without editing them.
+#
+# AC792's post-build additionally writes its reports to ${ROOT}, a variable
+# Jieli's IDE sets but the Makefile does not; point it at the SDK root.
+#
+# Set JIELI_VERBOSE=1 to see what is being executed.
+
+name="${1:-sdk}"
+
+dir=$PWD
+while [ "$dir" != "/" ]; do
+    tools=
+    for cand in "$dir"/cpu/*/tools/download.sh; do
+        if [ -f "$cand" ]; then
+            tools=$(dirname "$cand")
+            break
+        fi
+    done
+    if [ -n "$tools" ]; then
+        [ -n "${JIELI_VERBOSE:-}" ] && \
+            echo "jl-post-build: ROOT=$dir; cd $tools && bash download.sh $name" >&2
+        cd "$tools" || exit 1
+        ROOT=$dir
+        export ROOT
+        exec bash ./download.sh "$name"
+    fi
+    dir=$(dirname "$dir")
+done
+
+echo "jl-post-build: cpu/*/tools/download.sh not found under $PWD" >&2
+exit 1

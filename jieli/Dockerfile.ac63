@@ -1,0 +1,51 @@
+# Build image with the JieLi toolchain AND the AC63 SDK pre-installed.
+#
+# Based on enix223/jieli-build (toolchain + Linux post-build tools). The SDK is
+# cloned from Gitee at image build time and patched for building on Linux, so
+# no bind mount is required:
+#
+#   ./build-ac63.sh
+#   ./run-ac63.sh make ac632n_spp_and_le
+#
+# The patches in patches/ac63-linux-build/ come from the fork at
+# git@github.com:iot-eco-system/fw-AC63_BT_SDK.git (commits 7306492, 8264521).
+#
+# The toolchain binaries are x86-64 Linux ELF executables, so the image (and
+# the host running it) must be linux/amd64.
+# syntax=docker/dockerfile:1
+
+ARG BASE_IMAGE=enix223/jieli-build:1.0.0
+FROM ${BASE_IMAGE}
+
+ARG SDK_REPO=https://gitee.com/Jieli-Tech/fw-AC63_BT_SDK.git
+ARG SDK_BRANCH=master
+ARG SDK_DIR=/opt/ac63-sdk
+
+USER root
+
+# Shallow clone; the patches are written against the branch tip they were
+# tested with (c467c49 配置默认关闭VRTC). If Gitee's master moves and a patch
+# no longer applies, pin SDK_BRANCH to a tag/commit that still does.
+RUN git clone --depth 1 --branch "${SDK_BRANCH}" "${SDK_REPO}" "${SDK_DIR}"
+
+# Linux build fixes: reworked post-build download flow, SDK-local isd_download
+# and lz4_packet binaries with the executable bit set.
+COPY patches/ac63-linux-build/ /tmp/ac63-linux-build/
+RUN git -C "${SDK_DIR}" \
+        -c user.name="jieli-docker" -c user.email="jieli-docker@localhost" \
+        am /tmp/ac63-linux-build/*.patch \
+    && rm -rf /tmp/ac63-linux-build
+
+# download/data_trans/download.sh calls ../../fw_add and ../../ufw_maker, but
+# the SDK only ships the .exe versions. Point them at the Linux builds from
+# the base image's post-build tools and hide the symlinks from git status.
+RUN set -eux; \
+    for t in fw_add ufw_maker; do \
+        ln -sf "/opt/jieli/postbuild/${t}" "${SDK_DIR}/cpu/bd19/tools/${t}"; \
+        printf '%s\n' "cpu/bd19/tools/${t}" >> "${SDK_DIR}/.git/info/exclude"; \
+    done
+
+RUN chown -R dev:dev "${SDK_DIR}"
+
+USER dev
+WORKDIR /opt/ac63-sdk

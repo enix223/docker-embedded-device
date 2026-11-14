@@ -1,0 +1,6 @@
+#!/bin/sh
+#
+# No-op stand-in for the /opt/utils/report_segment_usage helper from Jieli's
+# IDE (AC792 post-build). It only produces a size report; the build does not
+# depend on its output.
+exit 0
